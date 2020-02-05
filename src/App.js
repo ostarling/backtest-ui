@@ -1,8 +1,9 @@
 import React from 'react'
 import './App.css'
 // import hist from './hist-M5.json'
-// import hist from './EUR_USD-M1-2019-07-15.json'
-import hist from './EUR_USD-M1-2019-12-31.json'
+import hist from './EUR_USD-M1-2019-07-15.json'
+// import hist from './EUR_USD-M1-2019-12-31.json'
+// import results from './results/GBP_USD/SimpleStrategy/2019-10-01/testRun1.json'
 
 import {BacktestReplay, RandomTradeEventsSource, BacktestStrategyEventsSource} from './BacktestReplay'
 
@@ -11,6 +12,10 @@ import ButtonToolbar from 'react-bootstrap/ButtonToolbar';
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import Container from 'react-bootstrap/Container';
 import InputGroup from 'react-bootstrap/InputGroup';
+import Nav from 'react-bootstrap/Nav';
+import NavDropdown from 'react-bootstrap/NavDropdown';
+import Navbar from 'react-bootstrap/Navbar';
+
 // import FormControl from 'react-bootstrap/Container';
 
 // import CandleChartDemo from './CandleChartDemo.js'
@@ -25,7 +30,10 @@ class App extends React.Component {
 
   constructor(props){
     super(props)
-    this.state = { offset: 20, timeout: 600, delta:1 }
+
+    this.shift = 20
+
+    this.state = { offset: this.shift, timeout: 600, delta:1 }
     this.running = true
     this.addTimeout = this.addTimeout.bind(this)
     this.pause = this.pause.bind(this)
@@ -34,6 +42,8 @@ class App extends React.Component {
     this.forward = this.forward.bind(this)
     this.backward = this.backward.bind(this)
     this.updateOffset = this.updateOffset.bind(this)
+    this.updateTimeOffset = this.updateTimeOffset.bind(this)
+    this.initilise = this.initilise.bind(this)
   
     const candlesRaw = hist.candles//.slice(0, 50)
 
@@ -46,24 +56,43 @@ class App extends React.Component {
         low: Number(c.mid.l)
       }
     })
+    this.timeToOffset = {}
+    for(let i in this.candles){
+      const c = this.candles[i]  // TODO buggy
+      const index = i-this.shift
+      if(index>=0)
+        this.timeToOffset[c.time] = index
+    }
 
+    this.tradeEventSource = new RandomTradeEventsSource(500)
+    this.initilise()
+  }
 
-    const tradeEventSource = new RandomTradeEventsSource(500)
+  initilise(){
+
     this.strategyEventsSource = new BacktestStrategyEventsSource(
-      this.candles, tradeEventSource, 100, 30, 1.0, 0
+      this.candles, this.tradeEventSource, 100, 30, 1.0, 0
     )
-
   
     this.strategyEventsSource.compute()
 
     this.strategyEvents = this.strategyEventsSource.eventsMap
-
+    this.updateOffset(20)
   }
 
   updateOffset(offset){
     this.setState(
       {offset: offset}
     )
+  }
+
+  updateTimeOffset(timeOffset){
+    const offset = this.timeToOffset[timeOffset]
+    if(typeof(offset) !== "undefined"){
+      this.setState(
+        {offset: offset}
+      )
+    }
   }
 
   step(deltaParam){
@@ -121,11 +150,37 @@ class App extends React.Component {
 
     return (
         <Container fluid="md">
-          <h2>Backtesting visualisation for {hist.instrument}</h2>
+          <Navbar bg="light" expand="lg" sticky="top">
+            <Navbar.Brand href="#home">Backtesting visualisation for {hist.instrument}</Navbar.Brand>
+            <Navbar.Toggle aria-controls="basic-navbar-nav" />
+            <Navbar.Collapse id="basic-navbar-nav">
+              <Nav className="mr-auto">
+                <Nav.Link onClick={this.initilise}>Rerun</Nav.Link>
+                <NavDropdown title="Strategy" id="basic-nav-dropdown">
+                  <NavDropdown.Item href="#action/3.1">Random</NavDropdown.Item>
+                  <NavDropdown.Item href="#action/3.2">Simple v1</NavDropdown.Item>
+                  <NavDropdown.Item href="#action/3.3">Simple v2</NavDropdown.Item>
+                </NavDropdown>
+                <NavDropdown title="Instrument" id="basic-nav-dropdown">
+                  <NavDropdown.Item href="#action/3.1">EUR/USD</NavDropdown.Item>
+                  <NavDropdown.Item href="#action/3.2">EUR/GBP</NavDropdown.Item>
+                  <NavDropdown.Item href="#action/3.3">GBP/USD</NavDropdown.Item>
+                </NavDropdown>
+              </Nav>
+              {/* <Form inline>
+                <FormControl type="text" placeholder="Search" className="mr-sm-2" />
+                <Button variant="outline-success">Search</Button>
+              </Form> */}
+            </Navbar.Collapse>
+          </Navbar>
+
+
+
+          {/* <h2>Backtesting visualisation for {hist.instrument}</h2> */}
           <InputGroup className="mb-3"  >
             <InputGroup.Prepend>
               <InputGroup.Text id="basic-addon3" className="playbackControl">
-                Playback control
+                Playback
               </InputGroup.Text>
             </InputGroup.Prepend>
             <InputGroup.Append>
@@ -156,6 +211,7 @@ class App extends React.Component {
             candles={this.candles} 
             offset={this.state.offset}
             updateOffset={this.updateOffset}
+            updateTimeOffset={this.updateTimeOffset}
             height={400} width={600} 
             />
 

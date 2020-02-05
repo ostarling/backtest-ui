@@ -81,17 +81,17 @@ class PnLChart extends React.Component {
     onClick(e){
         var rect = e.target.getBoundingClientRect();
         var x = e.clientX - rect.left
-        this.updatePosition(x*2)
+        this.updatePosition(Math.round(x/this.width*this.series.length))
     }
 
     render(props){
         const {series, position} = this.props
         this.position = position
         this.series = series
-        const halfWidth = (this.width/2)+'px'
-        const halfHeight = (this.height/2)+'px'
+        // const halfWidth = (this.width/2)+'px'
+        // const halfHeight = (this.height/2)+'px'
         return (
-            <canvas ref="canvas" style={{width:halfWidth, height:halfHeight}} width={this.width} height={this.height}
+            <canvas ref="canvas" style={{width:this.width, height:this.height}} width={this.series.length} height={this.height*2}
                 onClick={this.onClick} /> 
         )
 

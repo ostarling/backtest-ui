@@ -1,6 +1,8 @@
 import React from 'react';
 
 import Fade from 'react-bootstrap/Fade';
+import Table from 'react-bootstrap/Table';
+
 
 const FormatPnl = (value) => { return <span className={value && value <0 ? "loss" : "profit" }>{value.toFixed(5)}</span> }
 const FormatPips = (value) => { return <span className={value && value <0 ? "loss" : "profit" }>{value.toFixed(1)}</span> }
@@ -70,7 +72,7 @@ class StatsPanel extends React.Component {
                     <tr>
                         <td colSpan="2">
                             <h6>Log</h6>
-                            <table>
+                            <Table striped bordered hover>
                                 <thead>
                                     <tr>
                                         <th>Time</th>
@@ -79,8 +81,9 @@ class StatsPanel extends React.Component {
                                         <th>Qty</th>
                                         <th>Instr</th>
                                         <th>Price</th>
-                                        <th>PnL</th>
+                                        <th>Trade PnL</th>
                                         <th>Pips</th>
+                                        <th>Total PnL</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -88,7 +91,7 @@ class StatsPanel extends React.Component {
                             {stats.log.map((l,index) => {
                                 return (
                                     <tr key={index}>
-                                        <td>{l.time.substr(0, "2019-12-31T05:45".length)}</td>
+                                        <td><a onClick={() => this.props.updateTimeOffset(l.time)}>{l.time.substr(0, "2019-12-31T05:45".length)}</a></td>
                                         <td>{l.type}</td> 
                                         <td>{l.side>0 ? "BUY" : "SELL"}</td> 
                                         <td>{l.qty}</td> 
@@ -96,11 +99,12 @@ class StatsPanel extends React.Component {
                                         <td>{l.price.toFixed(5)}</td> 
                                         <td>{l.pnl && FormatPnl(l.pnl)}</td>
                                         <td>{l.pips && FormatPips(l.pips)}</td>
+                                        <td>{l.totalPnl && FormatPnl(l.totalPnl)}</td>
                                     </tr>
                                     )
                                 })}
                                 </tbody>
-                            </table>
+                            </Table>
                         </td>
                     </tr>
                     </tbody>

@@ -17,7 +17,7 @@ class Tracker {
     addValue(value){
         if(this.last){
             this.changes.push(value-this.last)
-            if(this.changes.length >= this.depth)
+            if(this.changes.length > this.depth)
                 this.changes = this.changes.slice(1)
         }
         this.last = value
@@ -25,9 +25,9 @@ class Tracker {
     getTrend(){
         // returns 1 or -1 for a trend, 0 otherwise
         if(this.changes.length === this.depth){
-            if(Math.max(...this.changes) < 0)
+            if(Math.max(...this.changes) <= 0)
                 return -1
-            if(Math.min(...this.changes) > 0)
+            if(Math.min(...this.changes) >= 0)
                 return 1
         }
         return 0
@@ -48,8 +48,9 @@ class RandomTradeEventsSource {
         this.tradeState = null
 
         this.tracker = {
-            highTracker: new Tracker(3),
-            lowTracker: new Tracker(3)
+            // highTracker: new Tracker(3),
+            // lowTracker: new Tracker(3),
+            avgTracker: new Tracker(3)
         }
     }
 
@@ -65,8 +66,9 @@ class RandomTradeEventsSource {
 
         const closeEvent = { type:"close", index: 0  }
 
-        this.tracker.highTracker.addValue(candle.high*10000)
-        this.tracker.lowTracker.addValue(candle.low*10000)
+        // this.tracker.highTracker.addValue(candle.high*10000)
+        // this.tracker.lowTracker.addValue(candle.low*10000)
+        this.tracker.avgTracker.addValue((candle.high-candle.low)/2*10000)
         
         if(accum.trades.length > 0){
             const trade = accum.trades[0]
@@ -127,23 +129,33 @@ class RandomTradeEventsSource {
         } else {
             // book a new trade?
             // TODO revise the opening strategy
-            const minMagnitude = 0.1
+            const minMagnitude = 3
 
-            this.tracker.trendHi = this.tracker.highTracker.getTrend()
-            this.tracker.trendLo = this.tracker.lowTracker.getTrend()
-            this.tracker.magnHi = this.tracker.highTracker.getMagnitude()
-            this.tracker.magnLo = this.tracker.lowTracker.getMagnitude()
+            // this.tracker.trendHi = this.tracker.highTracker.getTrend()
+            // this.tracker.trendLo = this.tracker.lowTracker.getTrend()
+            this.tracker.trendAvg = this.tracker.avgTracker.getTrend()
+            // this.tracker.magnHi = this.tracker.highTracker.getMagnitude()
+            // this.tracker.magnLo = this.tracker.lowTracker.getMagnitude()
+            this.tracker.magnAvg = this.tracker.avgTracker.getMagnitude()
 
             this.tracker.trend = 0
-            if( (this.tracker.trendHi === 1 && this.tracker.trendLo > -1) 
-                || (this.tracker.trendLo === 1 && this.tracker.trendHi > -1) ){
-                this.tracker.trend = 1
+            let magn = 0
+            if(this.tracker.trendAvg !== 0 && this.tracker.magnAvg > minMagnitude){
+                this.tracker.trend = this.tracker.trendAvg
+                magn = this.tracker.magnAvg
             }
-            if( (this.tracker.trendHi === -1 && this.tracker.trendLo < 1) 
-                || (this.tracker.trendLo === -1 && this.tracker.trendHi < 1)){
-                this.tracker.trend = -1
-            }
-            if(true || this.tracker.trend !== 0 && Math.max(this.tracker.magnHi,this.tracker.magnLo) > minMagnitude){
+            // if( (this.tracker.trendHi === 1 && this.tracker.trendLo > -1) 
+            //     || (this.tracker.trendLo === 1 && this.tracker.trendHi > -1) ){
+            //     this.tracker.trend = 1
+            //     magn = this.tracker.magnHi
+            // }
+            // if( (this.tracker.trendHi === -1 && this.tracker.trendLo < 1) 
+            // || (this.tracker.trendLo === -1 && this.tracker.trendHi < 1)){
+            //     this.tracker.trend = -1
+            //     magn = this.tracker.magnLow
+            // }
+
+            if(this.tracker.trend !== 0 && magn > minMagnitude){
                 this.tradeState = {
                     ticksInStatus: 0,
                     status: statusInitial,
@@ -151,7 +163,7 @@ class RandomTradeEventsSource {
                 return {
                     type: "open",
                     qty: this.qty,
-                    side: 1,//this.tracker.trend,
+                    side: this.tracker.trend,
                     instr: "EUR_USD"
                 }                
             }
@@ -233,7 +245,7 @@ class BacktestStrategyEventsSource {
         if(evt.type === "close"){
             const trade = accum.trades.splice(evt.index,1)[0]
             accum.realisedPnl += trade.pnl
-            accum.log.push({type:"close", instr: trade.instr, time:candle.time, price:price, qty: trade.qty, side: trade.side, pnl: trade.pnl, pips: trade.pips})
+            accum.log.push({type:"close", instr: trade.instr, time:candle.time, price:price, qty: trade.qty, side: trade.side, pnl: trade.pnl, pips: trade.pips, totalPnl: accum.realisedPnl})
         } if (evt.type === "open") {
             const openPrice = price + evt.side * spread
             const trade = {qty: evt.qty, side: evt.side, price: openPrice, ticks: 0, pnl:0, pips:0, time: candle.time }
@@ -254,8 +266,9 @@ class BacktestStrategyEventsSource {
         // console.log(candle, accum)
         accum.tradeState = Object.assign({}, this.tradeStateEventSource.tradeState)
         accum.tracker = Object.assign({}, this.tradeStateEventSource.tracker)
-        accum.tracker.highTracker = Object.assign({}, this.tradeStateEventSource.tracker.highTracker)
-        accum.tracker.lowTracker = Object.assign({}, this.tradeStateEventSource.tracker.lowTracker)
+        // accum.tracker.highTracker = Object.assign({}, this.tradeStateEventSource.tracker.highTracker)
+        // accum.tracker.lowTracker = Object.assign({}, this.tradeStateEventSource.tracker.lowTracker)
+        accum.tracker.avgTracker = Object.assign({}, this.tradeStateEventSource.tracker.avgTracker)
         return accum
     }
 
@@ -315,17 +328,17 @@ class BacktestReplay extends React.Component {
                                                 />
                                 {/* </Card.Text> */}
                                 <small>Unrealised PnL</small><br/>
-                                <PnLChart width={this.width*2} height={50} position={chartPosition}
+                                <PnLChart width={this.width} height={50} position={chartPosition}
                                     series={this.unrealisedPnlSeries}
                                     updatePosition={this.props.updateOffset}
                                     />
                                     <br/>
                                 <small>Realised PnL</small><br/>
-                                <PnLChart width={this.width*2} height={50} position={chartPosition}
+                                <PnLChart width={this.width} height={50} position={chartPosition}
                                     updatePosition={this.props.updateOffset}
                                     series={this.realisedPnlSeries}/>
                                 <small>Price chart overview</small><br/>
-                                <CandleChartOverview width={this.width*2} height={50} position={chartPosition}
+                                <CandleChartOverview width={this.width} height={50} position={chartPosition}
                                     updatePosition={this.props.updateOffset}
                                     candles={this.candles}/>
                             </Card.Body>
@@ -337,7 +350,7 @@ class BacktestReplay extends React.Component {
                             <Card.Body>
                                 <Card.Title style={{fontSize:'1.5em'}}>Statistics</Card.Title>
                                 {/* <Card.Text> */}
-                                    <StatsPanel stats={evt}/>  
+                                    <StatsPanel stats={evt} updateTimeOffset={this.props.updateTimeOffset}/>  
                                 {/* </Card.Text> */}
                             </Card.Body>
                         </Card>
